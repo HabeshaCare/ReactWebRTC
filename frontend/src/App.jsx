@@ -16,6 +16,8 @@ function App() {
   const [callEnded, setCallEnded] = useState(false);
   const [receivingCall, setReceivingCall] = useState(false);
   const [focused, setFocused] = useState(false);
+  const [isVideoEnabled, setIsVideoEnabled] = useState(true);
+  const [isAudioEnabled, setIsAudioEnabled] = useState(true);
 
   const streamRef = useRef();
   const localStreamRef = useRef();
@@ -143,7 +145,7 @@ function App() {
     try {
       streamRef.current = await navigator.mediaDevices.getUserMedia({
         video: true,
-        // audio: true,
+        audio: true,
       });
 
       if (streamRef.current) {
@@ -235,6 +237,24 @@ function App() {
     setReceivingCall(false);
     setOffers([]);
   };
+
+  const toggleVideo = () => {
+    if (localStreamRef.current && localStreamRef.current.srcObject) {
+      const enabled =
+        localStreamRef.current.srcObject.getVideoTracks()[0].enabled;
+      localStreamRef.current.srcObject.getVideoTracks()[0].enabled = !enabled;
+      setIsVideoEnabled(!enabled);
+    }
+  };
+
+  const toggleAudio = () => {
+    if (localStreamRef.current && localStreamRef.current.srcObject) {
+      const enabled =
+        localStreamRef.current.srcObject.getAudioTracks()[0].enabled;
+      localStreamRef.current.srcObject.getAudioTracks()[0].enabled = !enabled;
+      setIsAudioEnabled(!enabled);
+    }
+  };
   const onFocus = () => setFocused(true);
   const onBlur = () => setFocused(false);
 
@@ -246,7 +266,7 @@ function App() {
           <div className="video">
             <video
               playsInline
-              muted
+              muted={!isAudioEnabled}
               ref={localStreamRef}
               autoPlay
               style={{ width: "300px" }}
@@ -260,6 +280,13 @@ function App() {
               style={{ width: "300px" }}
               hidden={!callAccepted && callEnded}
             />
+            <button onClick={toggleVideo}>
+              {isVideoEnabled ? "Disable Video" : "Enable Video"}
+            </button>
+
+            <button onClick={toggleAudio}>
+              {isAudioEnabled ? "Disable Audio" : "Enable Audio"}
+            </button>
           </div>
         </div>
         <div className="myId">
