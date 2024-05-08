@@ -10,7 +10,7 @@ import "./App.css";
 function App() {
   const [name, setName] = useState("");
   const [nameToCall, setNameToCall] = useState("");
-  const password = "x";
+  const [token] = useState("");
 
   const [callAccepted, setCallAccepted] = useState(false);
   const [callEnded, setCallEnded] = useState(false);
@@ -30,9 +30,8 @@ function App() {
   const socket = useRef(
     io.connect("http://localhost:8181", {
       // io.connect("https://192.168.43.61:8181", {
-      auth: {
-        userName: name,
-        password,
+      query: {
+        token: token,
       },
       autoConnect: false,
     })
@@ -47,11 +46,11 @@ function App() {
   };
   useEffect(() => {
     if (!focused && name) {
-      socket.current.auth = { userName: name, password };
+      socket.current.io.opts.query = { token: token };
       socket.current.connect();
       console.log("Trying to connect to socket");
     }
-  }, [focused, name]);
+  }, [focused, token, name]);
 
   useEffect(() => {
     //on connection get all available offers and call createOfferEls
@@ -83,7 +82,7 @@ function App() {
 
   const callUser = async () => {
     if (!socket.current.connected) {
-      socket.current.auth = { userName: name, password };
+      socket.current.io.opts.query = { token: token };
       socket.current.connect();
     }
     await fetchUserMedia();

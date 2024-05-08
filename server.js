@@ -4,7 +4,14 @@ const http = require("http");
 const express = require("express");
 const app = express();
 const socketio = require("socket.io");
-app.use(express.static(__dirname));
+const jwt = require("socketio-jwt");
+
+require("dotenv").config();
+
+const isProduction = process.env.IS_PRODUCTION === "true";
+const frontendUrl = process.env.FRONTEND_URL;
+const corsOrigin =
+  isProduction && frontendUrl ? frontendUrl : "http://localhost:5173";
 
 //we need a key and cert to run https
 //we generated them with mkcert
@@ -23,12 +30,18 @@ const expressServer = http.createServer(app);
 const io = socketio(expressServer, {
   cors: {
     origin: [
-      "http://localhost:5173",
-      // "https://192.168.43.61:5173", //if using a phone or another computer
+      corsOrigin, //if using a phone or another computer
     ],
     methods: ["GET", "POST"],
   },
 });
+
+io.use(
+  jwt.authorize({
+    secret: process.env.SECRET_KEY,
+    handshake: true,
+  })
+);
 expressServer.listen(8181, () => console.log("Server running on port 8181"));
 
 //offers will contain {}
@@ -45,16 +58,8 @@ const connectedSockets = [
 ];
 
 io.on("connection", (socket) => {
-  // console.log("Someone has connected");
-  const userName = socket.handshake.auth.userName;
-  const password = socket.handshake.auth.password;
-
-  console.log("Received data: ", socket.handshake.auth);
-
-  if (password !== "x" || !userName) {
-    socket.disconnect(true);
-    return;
-  }
+  console.log("Found jwt token: ", socket.decoded_token);
+  const userName = socket.decoded_token.username;
   connectedSockets.push({
     socketId: socket.id,
     userName,
