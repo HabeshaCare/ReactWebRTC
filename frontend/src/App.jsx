@@ -10,7 +10,7 @@ import "./App.css";
 function App() {
   const [name, setName] = useState("");
   const [nameToCall, setNameToCall] = useState("");
-  const [token] = useState("");
+  const [token, setToken] = useState("");
 
   const [callAccepted, setCallAccepted] = useState(false);
   const [callEnded, setCallEnded] = useState(false);
@@ -53,6 +53,9 @@ function App() {
   }, [focused, token, name]);
 
   useEffect(() => {
+    setToken(
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwidXNlcm5hbWUiOiJKYW1lcyIsImlhdCI6MTUxNjIzOTAyMn0.J98PlQm2N6lw3L6LOWvcTjTOBeSeExqyWxTKzOMa1BI"
+    );
     //on connection get all available offers and call createOfferEls
     socket.current.on("availableOffers", (offers) => {
       console.log(offers);
@@ -75,6 +78,10 @@ function App() {
     socket.current.on("receivedIceCandidateFromServer", (iceCandidate) => {
       addNewIceCandidate(iceCandidate);
       console.log(iceCandidate);
+    });
+
+    socket.current.on("connect_error", (error) => {
+      console.log("Connection Error", error);
     });
 
     return resetStates;
