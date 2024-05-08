@@ -11,6 +11,7 @@ function App() {
   const [name, setName] = useState("");
   const [nameToCall, setNameToCall] = useState("");
   const [token, setToken] = useState("");
+  const [timeToConnect] = useState(60 * 1000); // Time in mins
 
   const [callAccepted, setCallAccepted] = useState(false);
   const [callEnded, setCallEnded] = useState(false);
@@ -53,9 +54,9 @@ function App() {
   }, [focused, token, name]);
 
   useEffect(() => {
-    setToken(
-      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwidXNlcm5hbWUiOiJKYW1lcyIsImlhdCI6MTUxNjIzOTAyMn0.J98PlQm2N6lw3L6LOWvcTjTOBeSeExqyWxTKzOMa1BI"
-    );
+    const token = prompt("JWT TOKEN required:");
+
+    setToken(token);
     //on connection get all available offers and call createOfferEls
     socket.current.on("availableOffers", (offers) => {
       console.log(offers);
@@ -82,6 +83,10 @@ function App() {
 
     socket.current.on("connect_error", (error) => {
       console.log("Connection Error", error);
+    });
+
+    socket.current.on("notification", (data) => {
+      console.log("Notification: ", data);
     });
 
     return resetStates;
@@ -132,6 +137,8 @@ function App() {
       console.log("======Added Ice Candidate======");
     });
     console.log(offerIceCandidates);
+    socket.current.emit("sessionStarted", { userName: name, timeToConnect });
+    console.log("Session starting socket event emitted");
   };
 
   const addAnswer = async (offerObj) => {

@@ -13,6 +13,8 @@ const frontendUrl = process.env.FRONTEND_URL;
 const corsOrigin =
   isProduction && frontendUrl ? frontendUrl : "http://localhost:5173";
 
+const UPDATE_INTERVAL_IN_MILLISECONDS = 1000;
+
 //we need a key and cert to run https
 //we generated them with mkcert
 // $ mkcert create-ca
@@ -54,19 +56,93 @@ const offers = [
   // answererIceCandidates
 ];
 const connectedSockets = [
-  //username, socketId
+  //socketId
+  //username
+  //role
+  //intervalId
+  //connectedTime
+  //remainingTime
 ];
 
 io.on("connection", (socket) => {
   console.log("Found jwt token: ", socket.decoded_token);
   const userName = socket.decoded_token.username;
+  const role = socket.decoded_token.role;
   connectedSockets.push({
     socketId: socket.id,
     userName,
+    role: role,
+    intervalId: null,
+    connectedTime: 0,
+    remainingTime: null,
   });
 
   console.log("User with name: ", userName);
 
+  socket.on("sessionStarted", (data) => {
+    const { userName, timeToConnect } = data;
+    console.log("Session started for user: ", userName);
+    console.log("Received time to connect: ", timeToConnect);
+
+    const connectedUsername = connectedTo(userName);
+
+    console.log("Connected to: ", connectedUsername);
+    const firstUser = connectedSockets.find(
+      (user) => user.userName === userName
+    );
+    const secondUser = connectedSockets.find(
+      (user) => user.userName === connectedUsername
+    );
+
+    console.log("First user info: ", firstUser);
+    console.log("Second user info: ", secondUser);
+
+    const intervalId = setInterval(() => {
+      const userSessionsToUpdate = [firstUser, secondUser];
+      console.log("Interval running...");
+      if (firstUser && secondUser) {
+        console.log("User sessions to update: ", userSessionsToUpdate);
+        userSessionsToUpdate.forEach((user) => {
+          user.connectedTime += UPDATE_INTERVAL_IN_MILLISECONDS;
+
+          if (user.role === "Patient") {
+            if (!user.remainingTime) user.remainingTime = timeToConnect;
+            user.remainingTime -= UPDATE_INTERVAL_IN_MILLISECONDS;
+            console.log(
+              "Updating Patient remaining time: ",
+              user.remainingTime
+            );
+
+            if (user.remainingTime <= 10) {
+              socket.to(user.socketId).emit("notification", user.remainingTime);
+            }
+
+            if (user.remainingTime <= 0) {
+              socket
+                .to(user.socketId)
+                .emit("notification", "User time limit exceeded");
+              let socketIdToDisconnect =
+                user.socketId === firstUser.socketId
+                  ? secondUser.socketId
+                  : firstUser.socketId;
+              if (
+                io.sockets.connected &&
+                io.sockets.connected[socketIdToDisconnect]
+              ) {
+                io.sockets.connected[socketIdToDisconnect].disconnect();
+              }
+              socket.disconnect();
+
+              console.log("Disconnecting user due to time limit exceeded");
+            }
+          }
+        });
+      }
+    }, UPDATE_INTERVAL_IN_MILLISECONDS);
+
+    firstUser.intervalId = intervalId;
+    secondUser.intervalId = intervalId;
+  });
   //a new client has joined. If there are any offers available,
   //emit them out
   if (offers.length) {
@@ -171,6 +247,8 @@ io.on("connection", (socket) => {
       var obj = connectedSockets[i];
 
       if (obj.socketId === socket.id) {
+        //TODO: Here you need to make the necessary updates in the dotnet server too.
+        if (obj.intervalId) clearInterval(obj.intervalId); // Stopping the interval id
         let userNameToDelete = obj.userName;
         connectedSockets.splice(i, 1);
         for (var j = 0; j < offers.length; j++) {
@@ -190,3 +268,12 @@ io.on("connection", (socket) => {
     console.log("disconnected");
   });
 });
+
+const connectedTo = (userName) => {
+  //This function takes a userName and returns the other userName connected to it in WebRTC
+  let offer = offers.find((o) => o.offererUserName === userName);
+  offer = offer ? offer : offers.find((o) => o.answererUserName === userName);
+  return offer.offererUserName === userName
+    ? offer.answererUserName
+    : offer.offererUserName;
+};
