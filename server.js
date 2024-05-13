@@ -116,14 +116,17 @@ io.on("connection", (socket) => {
             );
 
             if (user.remainingTime <= 10) {
-              socket.to(user.socketId).emit("notification", user.remainingTime);
+              io.to(answeringUser.socketId).emit(
+                "notification",
+                "User time limit exceeded"
+              );
+              io.to(callingUser.socketId).emit(
+                "notification",
+                "User time limit exceeded"
+              );
             }
 
             if (user.remainingTime <= 0) {
-              // socket
-              //   .to(user.socketId)
-              //   .emit("notification", "User time limit exceeded");
-
               io.to(answeringUser.socketId).emit(
                 "notification",
                 "User time limit exceeded"

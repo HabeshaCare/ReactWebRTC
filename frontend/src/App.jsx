@@ -91,7 +91,7 @@ function App() {
 
     socket.current.on("sessionEnded", () => {
       console.log("Session Ended event fired");
-      socket.current.disconnect();
+      leaveCall();
     });
 
     return resetStates;
