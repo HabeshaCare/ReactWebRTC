@@ -1,24 +1,20 @@
 import Button from "@material-ui/core/Button";
-import IconButton from "@material-ui/core/IconButton";
-import TextField from "@material-ui/core/TextField";
-import PhoneIcon from "@material-ui/icons/Phone";
 import { useEffect, useRef, useState } from "react";
 
 import io from "socket.io-client";
 import "./App.css";
 
 function App() {
-  const [name, setName] = useState("");
-  const [nameToCall, setNameToCall] = useState("");
   const [token, setToken] = useState("");
   const [timeToConnect] = useState(15 * 1000); // Time in milliseconds
 
   const [callAccepted, setCallAccepted] = useState(false);
   const [callEnded, setCallEnded] = useState(false);
   const [receivingCall, setReceivingCall] = useState(false);
-  const [focused, setFocused] = useState(false);
+  const [calling, setIsCalling] = useState(false);
   const [isVideoEnabled, setIsVideoEnabled] = useState(true);
   const [isAudioEnabled, setIsAudioEnabled] = useState(true);
+  const [connectionId, setConnectionId] = useState("");
 
   const streamRef = useRef();
   const localStreamRef = useRef();
@@ -46,17 +42,28 @@ function App() {
     ],
   };
   useEffect(() => {
-    if (!focused && name) {
-      socket.current.io.opts.query = { token: token };
-      socket.current.connect();
-      console.log("Trying to connect to socket");
-    }
-  }, [focused, token, name]);
+    const url = window.location.pathname;
+    const connectionId = url.split("/").pop();
+    const token = prompt("JWT TOKEN required:");
+    setToken(token);
+    setConnectionId(connectionId);
+
+    socket.current.io.opts.query = { token: token, connectionId: connectionId };
+    socket.current.connect();
+    console.log("Trying to connect to socket");
+  }, []);
 
   useEffect(() => {
-    const token = prompt("JWT TOKEN required:");
-
-    setToken(token);
+    socket.current.on("connected", async (data) => {
+      didIOffer.current = data.didIOffer;
+      if (didIOffer.current) {
+        await callUser();
+        setIsCalling(true);
+      } else {
+        setReceivingCall(true);
+        await answerCall(data.offerObj);
+      }
+    });
     //on connection get all available offers and call createOfferEls
     socket.current.on("availableOffers", (offers) => {
       console.log(offers);
@@ -94,14 +101,27 @@ function App() {
       leaveCall();
     });
 
-    return resetStates;
+    const socketRef = socket.current;
+
+    return () => {
+      resetStates();
+      socketRef.off();
+    };
   }, []);
+
+  const connect = () => {
+    socket.current.io.opts.query = {
+      token: token,
+      connectionId: connectionId,
+    };
+    socket.current.connect();
+  };
 
   const callUser = async () => {
     if (!socket.current.connected) {
-      socket.current.io.opts.query = { token: token };
-      socket.current.connect();
+      connect();
     }
+
     await fetchUserMedia();
 
     //peerConnection is all set with our STUN servers sent over
@@ -114,7 +134,7 @@ function App() {
       console.log(offer);
       connectionRef.current.setLocalDescription(offer);
       didIOffer.current = true;
-      socket.current.emit("newOffer", offer); //send offer to signalingServer
+      socket.current.emit("newOffer", { newOffer: offer, connectionId }); //send offer to signalingServer
     } catch (err) {
       console.log(err);
     }
@@ -142,7 +162,7 @@ function App() {
       console.log("======Added Ice Candidate======");
     });
     console.log(offerIceCandidates);
-    socket.current.emit("sessionStarted", { userName: name, timeToConnect });
+    socket.current.emit("sessionStarted", timeToConnect);
     console.log("Session starting socket event emitted");
   };
 
@@ -252,6 +272,7 @@ function App() {
   const resetStates = () => {
     setCallEnded(false);
     setCallAccepted(false);
+    setIsCalling(false);
     setReceivingCall(false);
     setOffers([]);
   };
@@ -273,8 +294,6 @@ function App() {
       setIsAudioEnabled(!enabled);
     }
   };
-  const onFocus = () => setFocused(true);
-  const onBlur = () => setFocused(false);
 
   return (
     <>
@@ -308,38 +327,16 @@ function App() {
           </div>
         </div>
         <div className="myId">
-          <TextField
-            id="filled-basic"
-            label="Name"
-            variant="filled"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            onFocus={onFocus}
-            onBlur={onBlur}
-            style={{ marginBottom: "20px" }}
-          />
-          <TextField
-            id="filled-basic"
-            label="ID to call"
-            variant="filled"
-            value={nameToCall}
-            onChange={(e) => setNameToCall(e.target.value)}
-          />
           <div className="call-button">
-            {callAccepted && !callEnded ? (
+            {calling ? (
               <Button variant="contained" color="secondary" onClick={leaveCall}>
-                End Call
+                {callAccepted && !callEnded ? "End Call" : "Leave Call"}
               </Button>
             ) : (
-              <IconButton
-                color="primary"
-                aria-label="call"
-                onClick={() => callUser()}
-              >
-                <PhoneIcon fontSize="large" />
-              </IconButton>
+              <Button variant="contained" color="primary" onClick={connect}>
+                connect
+              </Button>
             )}
-            {nameToCall}
           </div>
         </div>
         <div>
@@ -362,6 +359,13 @@ function App() {
                   </>
                 );
               })}
+            </div>
+          ) : null}
+        </div>
+        <div>
+          {calling && !callAccepted ? (
+            <div className="caller">
+              <h1>No one in the call yet...</h1>
             </div>
           ) : null}
         </div>

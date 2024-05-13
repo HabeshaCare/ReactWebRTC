@@ -62,12 +62,18 @@ const connectedSockets = [
   //intervalId
   //connectedTime
   //remainingTime
+  //connectionId
 ];
 
 io.on("connection", (socket) => {
   console.log("Found jwt token: ", socket.decoded_token);
   const userName = socket.decoded_token.username;
   const role = socket.decoded_token.role;
+  const connectionId = socket.handshake.query.connectionId;
+
+  const { userAlreadyConnected, offerObj } = connectedUserOffer(connectionId);
+  const didIOffer = userAlreadyConnected == null ? true : false; // If there is an already connected user, then the current user is the answerer
+
   connectedSockets.push({
     socketId: socket.id,
     userName,
@@ -75,12 +81,14 @@ io.on("connection", (socket) => {
     intervalId: null,
     connectedTime: 0,
     remainingTime: null,
+    connectionId,
   });
 
   console.log("User with name: ", userName);
+  socket.emit("connected", { didIOffer, offerObj });
 
-  socket.on("sessionStarted", (data) => {
-    const { userName, timeToConnect } = data;
+  socket.on("sessionStarted", (timeToConnect) => {
+    const userName = socket.decoded_token.username;
     console.log("Session started for user: ", userName);
     console.log("Received time to connect: ", timeToConnect);
 
@@ -155,7 +163,7 @@ io.on("connection", (socket) => {
     socket.emit("availableOffers", offers);
   }
 
-  socket.on("newOffer", (newOffer) => {
+  socket.on("newOffer", ({ newOffer, connectionId }) => {
     offers.push({
       offererUserName: userName,
       offer: newOffer,
@@ -166,6 +174,7 @@ io.on("connection", (socket) => {
     });
     // console.log(newOffer.sdp.slice(50))
     //send out to all connected sockets EXCEPT the caller
+
     socket.broadcast.emit("newOfferAwaiting", offers.slice(-1));
   });
 
@@ -282,4 +291,16 @@ const connectedTo = (userName) => {
   return offer.offererUserName === userName
     ? offer.answererUserName
     : offer.offererUserName;
+};
+
+const connectedUserOffer = (connectionId) => {
+  const userAlreadyConnected = connectedSockets.find(
+    (user) => user.connectionId === connectionId
+  );
+
+  const offerObj = offers.find(
+    (offer) => offer.offererUserName === userAlreadyConnected?.userName
+  );
+
+  return { userAlreadyConnected, offerObj };
 };
