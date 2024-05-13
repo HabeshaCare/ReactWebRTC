@@ -209,7 +209,8 @@ io.on("connection", (socket) => {
   });
 
   socket.on("sendIceCandidateToSignalingServer", (iceCandidateObj) => {
-    const { didIOffer, iceUserName, iceCandidate } = iceCandidateObj;
+    const { didIOffer, iceCandidate } = iceCandidateObj;
+    const iceUserName = socket.decoded_token.username;
     // console.log(iceCandidate);
     if (didIOffer) {
       //this ice is coming from the offerer. Send to the answerer

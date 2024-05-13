@@ -227,7 +227,6 @@ function App() {
         if (e.candidate) {
           socket.current.emit("sendIceCandidateToSignalingServer", {
             iceCandidate: e.candidate,
-            iceUserName: name,
             didIOffer: didIOffer.current,
           });
         }
