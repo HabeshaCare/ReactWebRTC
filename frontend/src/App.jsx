@@ -340,17 +340,21 @@ function App() {
         <div>
           {receivingCall && !callAccepted ? (
             <div className="caller">
-              <h1>{name} is calling...</h1>
               {offers.map((offer) => {
                 return (
-                  <Button
-                    key={Math.random() * 1_000_000}
-                    variant="contained"
-                    color="primary"
-                    onClick={() => answerCall(offer)}
-                  >
-                    Answer {offer.offererUserName}
-                  </Button>
+                  <>
+                    <h1 key={Math.random() * 1_000_000}>
+                      {offer.offererUserName} is calling...
+                    </h1>
+                    <Button
+                      key={Math.random() * 1_000_000}
+                      variant="contained"
+                      color="primary"
+                      onClick={() => answerCall(offer)}
+                    >
+                      Answer {offer.offererUserName}
+                    </Button>
+                  </>
                 );
               })}
             </div>
