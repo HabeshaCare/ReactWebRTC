@@ -11,7 +11,7 @@ function App() {
   const [name, setName] = useState("");
   const [nameToCall, setNameToCall] = useState("");
   const [token, setToken] = useState("");
-  const [timeToConnect] = useState(60 * 1000); // Time in mins
+  const [timeToConnect] = useState(15 * 1000); // Time in milliseconds
 
   const [callAccepted, setCallAccepted] = useState(false);
   const [callEnded, setCallEnded] = useState(false);
@@ -87,6 +87,11 @@ function App() {
 
     socket.current.on("notification", (data) => {
       console.log("Notification: ", data);
+    });
+
+    socket.current.on("sessionEnded", () => {
+      console.log("Session Ended event fired");
+      socket.current.disconnect();
     });
 
     return resetStates;

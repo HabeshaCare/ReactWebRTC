@@ -87,20 +87,22 @@ io.on("connection", (socket) => {
     const connectedUsername = connectedTo(userName);
 
     console.log("Connected to: ", connectedUsername);
-    const firstUser = connectedSockets.find(
+    const answeringUser = connectedSockets.find(
       (user) => user.userName === userName
     );
-    const secondUser = connectedSockets.find(
+    const callingUser = connectedSockets.find(
       (user) => user.userName === connectedUsername
     );
 
-    console.log("First user info: ", firstUser);
-    console.log("Second user info: ", secondUser);
+    console.log("Answering user info: ", answeringUser);
+    console.log("Calling user info: ", callingUser);
+
+    socket.to(answeringUser.socketId).emit("notification", "Session started");
 
     const intervalId = setInterval(() => {
-      const userSessionsToUpdate = [firstUser, secondUser];
+      const userSessionsToUpdate = [answeringUser, callingUser];
       console.log("Interval running...");
-      if (firstUser && secondUser) {
+      if (answeringUser && callingUser) {
         console.log("User sessions to update: ", userSessionsToUpdate);
         userSessionsToUpdate.forEach((user) => {
           user.connectedTime += UPDATE_INTERVAL_IN_MILLISECONDS;
@@ -118,20 +120,21 @@ io.on("connection", (socket) => {
             }
 
             if (user.remainingTime <= 0) {
-              socket
-                .to(user.socketId)
-                .emit("notification", "User time limit exceeded");
-              let socketIdToDisconnect =
-                user.socketId === firstUser.socketId
-                  ? secondUser.socketId
-                  : firstUser.socketId;
-              if (
-                io.sockets.connected &&
-                io.sockets.connected[socketIdToDisconnect]
-              ) {
-                io.sockets.connected[socketIdToDisconnect].disconnect();
-              }
-              socket.disconnect();
+              // socket
+              //   .to(user.socketId)
+              //   .emit("notification", "User time limit exceeded");
+
+              io.to(answeringUser.socketId).emit(
+                "notification",
+                "User time limit exceeded"
+              );
+              io.to(callingUser.socketId).emit(
+                "notification",
+                "User time limit exceeded"
+              );
+
+              io.to(answeringUser.socketId).emit("sessionEnded");
+              io.to(callingUser.socketId).emit("sessionEnded");
 
               console.log("Disconnecting user due to time limit exceeded");
             }
@@ -140,8 +143,8 @@ io.on("connection", (socket) => {
       }
     }, UPDATE_INTERVAL_IN_MILLISECONDS);
 
-    firstUser.intervalId = intervalId;
-    secondUser.intervalId = intervalId;
+    answeringUser.intervalId = intervalId;
+    callingUser.intervalId = intervalId;
   });
   //a new client has joined. If there are any offers available,
   //emit them out
