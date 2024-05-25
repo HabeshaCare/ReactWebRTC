@@ -10,6 +10,7 @@ require("dotenv").config();
 
 const isProduction = process.env.IS_PRODUCTION === "true";
 const frontendUrl = process.env.FRONTEND_URL;
+const backendUrl = process.env.DOTNET_URL;
 const corsOrigin =
   isProduction && frontendUrl ? frontendUrl : "http://localhost:5173";
 
@@ -63,6 +64,7 @@ const connectedSockets = [
   //connectedTime
   //remainingTime
   //connectionId
+  //TODO: Make sure to add patient and doctors as a data here
 ];
 
 io.on("connection", (socket) => {
@@ -264,6 +266,55 @@ io.on("connection", (socket) => {
 
       if (obj.socketId === socket.id) {
         //TODO: Here you need to make the necessary updates in the dotnet server too.
+        const axios = require("axios");
+
+        const userName = socket.decoded_token.username;
+        const connectedUsername = connectedTo(userName);
+
+        const answeringUser = connectedSockets.find(
+          (user) => user.userName === userName
+        );
+        const callingUser = connectedSockets.find(
+          (user) => user.userName === connectedUsername
+        );
+
+        const patient =
+          callingUser.role === "Patient" ? callingUser : answeringUser;
+        const doctor =
+          callingUser.role === "Doctor" ? callingUser : answeringUser;
+
+        let updatePatient = axios.put(
+          `${DOTNET_URL}/api/patient/${patient.userName}/profile`,
+          {
+            currentBalance: patient.remainingTime, //TODO: Change this to be calculated with his hourly rate
+          },
+          {
+            headers: {
+              Authorization: `Bearer ${jwtToken}`,
+              "Content-Type": "application/json",
+            },
+          }
+        );
+        let updateDoctor = axios.put(
+          `${DOTNET_URL}/api/doctor/${doctor.userName}/profile`,
+          {
+            availableMoney: doctor.connectedTime, //TODO: Change this to be calculated with his hourly rate
+          }
+        );
+
+        Promise.all([updatePatient, updateDoctor])
+          .then(function (responses) {
+            // responses is an array of responses from all promises
+            let patientResponse = responses[0];
+            let doctorResponse = responses[1];
+
+            console.log("Patient Response", patientResponse.data);
+            console.log("Doctor Response", doctorResponse.data);
+          })
+          .catch(function (error) {
+            console.log(error);
+          });
+
         if (obj.intervalId) clearInterval(obj.intervalId); // Stopping the interval id
         let userNameToDelete = obj.userName;
         connectedSockets.splice(i, 1);
