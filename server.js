@@ -12,7 +12,7 @@ const isProduction = process.env.IS_PRODUCTION === "true";
 const frontendUrl = process.env.FRONTEND_URL;
 const backendUrl = process.env.DOTNET_URL;
 const corsOrigin =
-  isProduction && frontendUrl ? frontendUrl : "http://localhost:5173";
+  isProduction && frontendUrl ? frontendUrl : "http://localhost:3000";
 
 const UPDATE_INTERVAL_IN_MILLISECONDS = 1000;
 
@@ -266,7 +266,7 @@ io.on("connection", (socket) => {
 
       if (obj.socketId === socket.id) {
         //TODO: Here you need to make the necessary updates in the dotnet server too.
-        const axios = require("axios");
+        // const axios = require("axios");
 
         const userName = socket.decoded_token.username;
         const connectedUsername = connectedTo(userName);
@@ -283,37 +283,37 @@ io.on("connection", (socket) => {
         const doctor =
           callingUser.role === "Doctor" ? callingUser : answeringUser;
 
-        let updatePatient = axios.put(
-          `${DOTNET_URL}/api/patient/${patient.userName}/profile`,
-          {
-            currentBalance: patient.remainingTime, //TODO: Change this to be calculated with his hourly rate
-          },
-          {
-            headers: {
-              Authorization: `Bearer ${jwtToken}`,
-              "Content-Type": "application/json",
-            },
-          }
-        );
-        let updateDoctor = axios.put(
-          `${DOTNET_URL}/api/doctor/${doctor.userName}/profile`,
-          {
-            availableMoney: doctor.connectedTime, //TODO: Change this to be calculated with his hourly rate
-          }
-        );
+        // let updatePatient = axios.put(
+        //   `${DOTNET_URL}/api/patient/${patient.userName}/profile`,
+        //   {
+        //     currentBalance: patient.remainingTime, //TODO: Change this to be calculated with his hourly rate
+        //   },
+        //   {
+        //     headers: {
+        //       Authorization: `Bearer ${jwtToken}`,
+        //       "Content-Type": "application/json",
+        //     },
+        //   }
+        // );
+        // let updateDoctor = axios.put(
+        //   `${DOTNET_URL}/api/doctor/${doctor.userName}/profile`,
+        //   {
+        //     availableMoney: doctor.connectedTime, //TODO: Change this to be calculated with his hourly rate
+        //   }
+        // );
 
-        Promise.all([updatePatient, updateDoctor])
-          .then(function (responses) {
-            // responses is an array of responses from all promises
-            let patientResponse = responses[0];
-            let doctorResponse = responses[1];
+        // Promise.all([updatePatient, updateDoctor])
+        //   .then(function (responses) {
+        //     // responses is an array of responses from all promises
+        //     let patientResponse = responses[0];
+        //     let doctorResponse = responses[1];
 
-            console.log("Patient Response", patientResponse.data);
-            console.log("Doctor Response", doctorResponse.data);
-          })
-          .catch(function (error) {
-            console.log(error);
-          });
+        //     console.log("Patient Response", patientResponse.data);
+        //     console.log("Doctor Response", doctorResponse.data);
+        //   })
+        //   .catch(function (error) {
+        //     console.log(error);
+        //   });
 
         if (obj.intervalId) clearInterval(obj.intervalId); // Stopping the interval id
         let userNameToDelete = obj.userName;
