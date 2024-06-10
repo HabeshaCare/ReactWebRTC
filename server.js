@@ -125,29 +125,29 @@ io.on("connection", (socket) => {
               user.remainingTime
             );
 
-            if (user.remainingTime <= 10) {
+            if (user.remainingTime == 10 * 60 * 1000) { // Notify user at 10 minutes
               io.to(answeringUser.socketId).emit(
                 "notification",
-                "User time limit exceeded"
+                {title: "Warning! Connection Limit Reached", description: "Only 10 mins remaining"}
               );
               io.to(callingUser.socketId).emit(
                 "notification",
-                "User time limit exceeded"
+                {title: "Warning! Connection Limit Reached", description: "Only 10 mins remaining"}
               );
             }
 
             if (user.remainingTime <= 0) {
               io.to(answeringUser.socketId).emit(
                 "notification",
-                "User time limit exceeded"
+                {title: "Disconnected", description: "Session ended due to time limit!"}
               );
               io.to(callingUser.socketId).emit(
                 "notification",
-                "User time limit exceeded"
+                {title: "Disconnected", description: "Session ended due to time limit!"}
               );
 
-              io.to(answeringUser.socketId).emit("sessionEnded");
-              io.to(callingUser.socketId).emit("sessionEnded");
+              io.to(answeringUser.socketId).emit("sessionEnded", {title: "Disconnected", description: "Session ended due to time limit!"});
+              io.to(callingUser.socketId).emit("sessionEnded", {title: "Diconnected", description: "Session ended due to time limit!"});
 
               console.log("Disconnecting user due to time limit exceeded");
             }
@@ -324,8 +324,8 @@ io.on("connection", (socket) => {
             offer.offererUserName === userNameToDelete ||
             offer.answererUserName === userNameToDelete
           ) {
-              io.to(answeringUser.socketId).emit("sessionEnded");
-              io.to(callingUser.socketId).emit("sessionEnded");
+              io.to(answeringUser?.socketId).emit("sessionEnded", {title: "Disconnected", description: `Session ended due to ${callingUser? callingUser.userName : 'user'}'s disconnection!`});
+              io.to(callingUser?.socketId).emit("sessionEnded", {title: "Diconnected", description: `Session ended due to ${answeringUser? answeringUser.userName : 'user'}'s disconnection!`});
               offers.splice(j, 1);
               j--;
           }
