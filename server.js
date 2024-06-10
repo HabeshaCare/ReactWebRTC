@@ -113,7 +113,7 @@ io.on("connection", (socket) => {
       const userSessionsToUpdate = [answeringUser, callingUser];
       console.log("Interval running...");
       if (answeringUser && callingUser) {
-        console.log("User sessions to update: ", userSessionsToUpdate);
+        // console.log("User sessions to update: ", userSessionsToUpdate);
         userSessionsToUpdate.forEach((user) => {
           user.connectedTime += UPDATE_INTERVAL_IN_MILLISECONDS;
 
@@ -181,7 +181,7 @@ io.on("connection", (socket) => {
   });
 
   socket.on("newAnswer", (offerObj, ackFunction) => {
-    console.log(offerObj);
+    // console.log(offerObj);
     //emit this answer (offerObj) back to CLIENT1
     //in order to do that, we need CLIENT1's socketid
     const socketToAnswer = connectedSockets.find(
@@ -270,7 +270,7 @@ io.on("connection", (socket) => {
 
         const userName = socket.decoded_token.username;
         const connectedUsername = connectedTo(userName);
-
+        console.log("Disconnecting userName: ", userName);
         const answeringUser = connectedSockets.find(
           (user) => user.userName === userName
         );
@@ -279,9 +279,9 @@ io.on("connection", (socket) => {
         );
 
         const patient =
-          callingUser.role === "Patient" ? callingUser : answeringUser;
+          callingUser?.role === "Patient" ? callingUser : answeringUser;
         const doctor =
-          callingUser.role === "Doctor" ? callingUser : answeringUser;
+          callingUser?.role === "Doctor" ? callingUser : answeringUser;
 
         // let updatePatient = axios.put(
         //   `${DOTNET_URL}/api/patient/${patient.userName}/profile`,
@@ -324,8 +324,10 @@ io.on("connection", (socket) => {
             offer.offererUserName === userNameToDelete ||
             offer.answererUserName === userNameToDelete
           ) {
-            offers.splice(j, 1);
-            j--;
+              io.to(answeringUser.socketId).emit("sessionEnded");
+              io.to(callingUser.socketId).emit("sessionEnded");
+              offers.splice(j, 1);
+              j--;
           }
         }
         i--;
@@ -340,9 +342,9 @@ const connectedTo = (userName) => {
   //This function takes a userName and returns the other userName connected to it in WebRTC
   let offer = offers.find((o) => o.offererUserName === userName);
   offer = offer ? offer : offers.find((o) => o.answererUserName === userName);
-  return offer.offererUserName === userName
+  return offer?.offererUserName === userName
     ? offer.answererUserName
-    : offer.offererUserName;
+    : offer?.offererUserName;
 };
 
 const connectedUserOffer = (connectionId) => {
