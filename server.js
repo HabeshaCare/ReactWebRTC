@@ -45,7 +45,7 @@ io.use(
     handshake: true,
   })
 );
-expressServer.listen(8181, () => console.log("Server running on port 8181"));
+expressServer.listen(8181, () => console.log("Server running on port 8181: Allowing CORS: ", frontendUrl));
 
 //offers will contain {}
 const offers = [
