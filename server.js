@@ -45,7 +45,9 @@ io.use(
     handshake: true,
   })
 );
-expressServer.listen(8181, () => console.log("Server running on port 8181: Allowing CORS: ", frontendUrl));
+expressServer.listen(8181, () =>
+  console.log("Server running on port 8181: Allowing CORS: ", frontendUrl)
+);
 
 //offers will contain {}
 const offers = [
@@ -69,7 +71,7 @@ const connectedSockets = [
 
 io.on("connection", (socket) => {
   console.log("Found jwt token: ", socket.decoded_token);
-  const userName = socket.decoded_token.username;
+  const email = socket.decoded_token.email;
   const role = socket.decoded_token.role;
   const connectionId = socket.handshake.query.connectionId;
 
@@ -78,7 +80,7 @@ io.on("connection", (socket) => {
 
   connectedSockets.push({
     socketId: socket.id,
-    userName,
+    email,
     role: role,
     intervalId: null,
     connectedTime: 0,
@@ -86,22 +88,20 @@ io.on("connection", (socket) => {
     connectionId,
   });
 
-  console.log("User with name: ", userName);
+  console.log("User with name: ", email);
   socket.emit("connected", { didIOffer, offerObj });
 
   socket.on("sessionStarted", (timeToConnect) => {
-    const userName = socket.decoded_token.username;
-    console.log("Session started for user: ", userName);
+    const email = socket.decoded_token.email;
+    console.log("Session started for user: ", email);
     console.log("Received time to connect: ", timeToConnect);
 
-    const connectedUsername = connectedTo(userName);
+    const connectedUsername = connectedTo(email);
 
     console.log("Connected to: ", connectedUsername);
-    const answeringUser = connectedSockets.find(
-      (user) => user.userName === userName
-    );
+    const answeringUser = connectedSockets.find((user) => user.email === email);
     const callingUser = connectedSockets.find(
-      (user) => user.userName === connectedUsername
+      (user) => user.email === connectedUsername
     );
 
     console.log("Answering user info: ", answeringUser);
@@ -125,29 +125,36 @@ io.on("connection", (socket) => {
               user.remainingTime
             );
 
-            if (user.remainingTime == 10 * 60 * 1000) { // Notify user at 10 minutes
-              io.to(answeringUser.socketId).emit(
-                "notification",
-                {title: "Warning! Connection Limit Reached", description: "Only 10 mins remaining"}
-              );
-              io.to(callingUser.socketId).emit(
-                "notification",
-                {title: "Warning! Connection Limit Reached", description: "Only 10 mins remaining"}
-              );
+            if (user.remainingTime == 10 * 60 * 1000) {
+              // Notify user at 10 minutes
+              io.to(answeringUser.socketId).emit("notification", {
+                title: "Warning! Connection Limit Reached",
+                description: "Only 10 mins remaining",
+              });
+              io.to(callingUser.socketId).emit("notification", {
+                title: "Warning! Connection Limit Reached",
+                description: "Only 10 mins remaining",
+              });
             }
 
             if (user.remainingTime <= 0) {
-              io.to(answeringUser.socketId).emit(
-                "notification",
-                {title: "Disconnected", description: "Session ended due to time limit!"}
-              );
-              io.to(callingUser.socketId).emit(
-                "notification",
-                {title: "Disconnected", description: "Session ended due to time limit!"}
-              );
+              io.to(answeringUser.socketId).emit("notification", {
+                title: "Disconnected",
+                description: "Session ended due to time limit!",
+              });
+              io.to(callingUser.socketId).emit("notification", {
+                title: "Disconnected",
+                description: "Session ended due to time limit!",
+              });
 
-              io.to(answeringUser.socketId).emit("sessionEnded", {title: "Disconnected", description: "Session ended due to time limit!"});
-              io.to(callingUser.socketId).emit("sessionEnded", {title: "Diconnected", description: "Session ended due to time limit!"});
+              io.to(answeringUser.socketId).emit("sessionEnded", {
+                title: "Disconnected",
+                description: "Session ended due to time limit!",
+              });
+              io.to(callingUser.socketId).emit("sessionEnded", {
+                title: "Diconnected",
+                description: "Session ended due to time limit!",
+              });
 
               console.log("Disconnecting user due to time limit exceeded");
             }
@@ -167,7 +174,7 @@ io.on("connection", (socket) => {
 
   socket.on("newOffer", ({ newOffer, connectionId }) => {
     offers.push({
-      offererUserName: userName,
+      offererUserName: email,
       offer: newOffer,
       offerIceCandidates: [],
       answererUserName: null,
@@ -185,7 +192,7 @@ io.on("connection", (socket) => {
     //emit this answer (offerObj) back to CLIENT1
     //in order to do that, we need CLIENT1's socketid
     const socketToAnswer = connectedSockets.find(
-      (s) => s.userName === offerObj.offererUserName
+      (s) => s.email === offerObj.offererUserName
     );
     if (!socketToAnswer) {
       console.log("No matching socket");
@@ -204,7 +211,7 @@ io.on("connection", (socket) => {
     //send back to the answerer all the iceCandidates we have already collected
     ackFunction(offerToUpdate.offerIceCandidates);
     offerToUpdate.answer = offerObj.answer;
-    offerToUpdate.answererUserName = userName;
+    offerToUpdate.answererUserName = email;
     //socket has a .to() which allows emitting to a "room"
     //every socket has it's own room
     socket.to(socketIdToAnswer).emit("answerResponse", offerToUpdate);
@@ -212,7 +219,7 @@ io.on("connection", (socket) => {
 
   socket.on("sendIceCandidateToSignalingServer", (iceCandidateObj) => {
     const { didIOffer, iceCandidate } = iceCandidateObj;
-    const iceUserName = socket.decoded_token.username;
+    const iceUserName = socket.decoded_token.email;
     // console.log(iceCandidate);
     if (didIOffer) {
       //this ice is coming from the offerer. Send to the answerer
@@ -226,7 +233,7 @@ io.on("connection", (socket) => {
         if (offerInOffers.answererUserName) {
           //pass it through to the other socket
           const socketToSendTo = connectedSockets.find(
-            (s) => s.userName === offerInOffers.answererUserName
+            (s) => s.email === offerInOffers.answererUserName
           );
           if (socketToSendTo) {
             socket
@@ -245,7 +252,7 @@ io.on("connection", (socket) => {
       );
 
       const socketToSendTo = connectedSockets.find(
-        (s) => s.userName === offerInOffers?.offererUserName
+        (s) => s.email === offerInOffers?.offererUserName
       );
       if (socketToSendTo) {
         socket
@@ -268,14 +275,14 @@ io.on("connection", (socket) => {
         //TODO: Here you need to make the necessary updates in the dotnet server too.
         // const axios = require("axios");
 
-        const userName = socket.decoded_token.username;
-        const connectedUsername = connectedTo(userName);
-        console.log("Disconnecting userName: ", userName);
+        const email = socket.decoded_token.email;
+        const connectedUsername = connectedTo(email);
+        console.log("Disconnecting email: ", email);
         const answeringUser = connectedSockets.find(
-          (user) => user.userName === userName
+          (user) => user.email === email
         );
         const callingUser = connectedSockets.find(
-          (user) => user.userName === connectedUsername
+          (user) => user.email === connectedUsername
         );
 
         const patient =
@@ -284,7 +291,7 @@ io.on("connection", (socket) => {
           callingUser?.role === "Doctor" ? callingUser : answeringUser;
 
         // let updatePatient = axios.put(
-        //   `${DOTNET_URL}/api/patient/${patient.userName}/profile`,
+        //   `${DOTNET_URL}/api/patient/${patient.email}/profile`,
         //   {
         //     currentBalance: patient.remainingTime, //TODO: Change this to be calculated with his hourly rate
         //   },
@@ -296,7 +303,7 @@ io.on("connection", (socket) => {
         //   }
         // );
         // let updateDoctor = axios.put(
-        //   `${DOTNET_URL}/api/doctor/${doctor.userName}/profile`,
+        //   `${DOTNET_URL}/api/doctor/${doctor.email}/profile`,
         //   {
         //     availableMoney: doctor.connectedTime, //TODO: Change this to be calculated with his hourly rate
         //   }
@@ -316,18 +323,28 @@ io.on("connection", (socket) => {
         //   });
 
         if (obj.intervalId) clearInterval(obj.intervalId); // Stopping the interval id
-        let userNameToDelete = obj.userName;
+        let emailToDelete = obj.email;
         connectedSockets.splice(i, 1);
         for (var j = 0; j < offers.length; j++) {
           var offer = offers[j];
           if (
-            offer.offererUserName === userNameToDelete ||
-            offer.answererUserName === userNameToDelete
+            offer.offererUserName === emailToDelete ||
+            offer.answererUserName === emailToDelete
           ) {
-              io.to(answeringUser?.socketId).emit("sessionEnded", {title: "Disconnected", description: `Session ended due to ${callingUser? callingUser.userName : 'user'}'s disconnection!`});
-              io.to(callingUser?.socketId).emit("sessionEnded", {title: "Diconnected", description: `Session ended due to ${answeringUser? answeringUser.userName : 'user'}'s disconnection!`});
-              offers.splice(j, 1);
-              j--;
+            io.to(answeringUser?.socketId).emit("sessionEnded", {
+              title: "Disconnected",
+              description: `Session ended due to ${
+                callingUser ? callingUser.email : "user"
+              }'s disconnection!`,
+            });
+            io.to(callingUser?.socketId).emit("sessionEnded", {
+              title: "Diconnected",
+              description: `Session ended due to ${
+                answeringUser ? answeringUser.email : "user"
+              }'s disconnection!`,
+            });
+            offers.splice(j, 1);
+            j--;
           }
         }
         i--;
@@ -338,11 +355,11 @@ io.on("connection", (socket) => {
   });
 });
 
-const connectedTo = (userName) => {
-  //This function takes a userName and returns the other userName connected to it in WebRTC
-  let offer = offers.find((o) => o.offererUserName === userName);
-  offer = offer ? offer : offers.find((o) => o.answererUserName === userName);
-  return offer?.offererUserName === userName
+const connectedTo = (email) => {
+  //This function takes a email and returns the other email connected to it in WebRTC
+  let offer = offers.find((o) => o.offererUserName === email);
+  offer = offer ? offer : offers.find((o) => o.answererUserName === email);
+  return offer?.offererUserName === email
     ? offer.answererUserName
     : offer?.offererUserName;
 };
@@ -353,7 +370,7 @@ const connectedUserOffer = (connectionId) => {
   );
 
   const offerObj = offers.find(
-    (offer) => offer.offererUserName === userAlreadyConnected?.userName
+    (offer) => offer.offererUserName === userAlreadyConnected?.email
   );
 
   return { userAlreadyConnected, offerObj };
